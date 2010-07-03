@@ -1,0 +1,18 @@
+Add regular expressions of things to erase:
+    \[.*?\]
+    \(.*?\)
+    \d\d\dx\d\d\d
+    S\d{1,2}[eExX]{1,2}
+    \d+
+
+Add list of things to disregard:
+    DVD, BDRip, DVDRip, XviD, x264, h264, aac, MP3, OVA, OAV, episode, season ...
+
+Add prefixes to directories when auto-created
+
+Add parameters:
+    check directory duplicates
+    create directory structure
+    -y force (non interactive)
+    -t similarity threshold
+    -s simulate

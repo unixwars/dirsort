@@ -53,8 +53,9 @@ def main (path):
 
         lst2.remove(x)
         count += 1
-        print >> sys.stderr, '%.2f%% done' %((count / len_lst)*200)
+        print >> sys.stderr, '%.2f%% done\r' %(min(100.00,(count / len_lst)*200)),
 
+    print >> sys.stderr, ''
     show(results)
 
 def split (str1):
@@ -81,7 +82,7 @@ def show (results):
         a,b = x['A'],x['B']
         if not b[1] and a[1]:
             a,b = b,a
-        print '%.2f \t %s \t --> %s' %(x['factor'], a[0], b[0])
+        print '%.2f %s \t --> %s' %(x['factor'], a[0], b[0])
 
 if __name__=='__main__':
     try:

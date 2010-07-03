@@ -16,3 +16,4 @@ Add parameters:
     -y force (non interactive)
     -t similarity threshold
     -s simulate
+    -f flag fast (skip file-file comparisons, keep only dir-dir or dir-file ones)

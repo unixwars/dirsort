@@ -1,19 +1,46 @@
-Add regular expressions of things to erase:
+[ ] Add regular expressions of things to erase:
     \[.*?\]
     \(.*?\)
     \d\d\dx\d\d\d
-    S\d{1,2}[eExX]{1,2}
+    s\d{1,2}[ex]{1,2}
     \d+
-
-Add list of things to disregard:
     DVD, BDRip, DVDRip, XviD, x264, h264, aac, MP3, OVA, OAV, episode, season ...
 
-Add prefixes to directories when auto-created
+[x] Add prefixes to directories when auto-created
 
-Add parameters:
-    check directory duplicates
-    create directory structure
-    -y force (non interactive)
-    -t similarity threshold
+[ ] Add parameters:
     -s simulate
-    -f flag fast (skip file-file comparisons, keep only dir-dir or dir-file ones)
+    -d also do dir-dir comparisons (to merge duplicates)
+    -y non interactive. accept defaults
+    -f similarity threshold (default:50%)
+    -m PREFIX make directory structure, starting with optional PREFIX (don't skip file-file comparisons)
+
+Remove file from list of target alternatives once it has been moved,
+but not before (in case the first choice is not the correct one).
+
+Accept several input paths at once.
+
+
+Algorithm:
+1)
+	sort threshold
+
+	when factor (dir-dir) >= threshold:
+	     merge
+	     register moved_dir, and threshold
+
+	when factor (dir-file) >= threshold:
+	     move file
+	     register moved_file, and threshold
+
+2) for remaining files:
+        when factor (file-file) >= threshold:
+	     if both in sets:
+	        skip
+	     elif one in set:
+	        add other to same set
+	        register {file:set}
+	     else:
+	        add files to new set
+	        register both {file:set}
+   generate dir_name: clean first item of each set

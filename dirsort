@@ -406,18 +406,12 @@ def main():
     if args == []:
         args.append (os.getcwd())
 
-
-    try:
-        sorter = Sorter (options, args)
-    except KeyboardInterrupt:
-        print ''
-
-    try:
-        mover  = Mover (options, sorter())
-    except KeyboardInterrupt:
-        print ''
-    finally:
-        mover()
+    sorter = Sorter (options, args)
+    mover  = Mover (options, sorter())
+    mover()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print ''

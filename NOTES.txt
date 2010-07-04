@@ -6,17 +6,17 @@
     \d+
     DVD, BDRip, DVDRip, XviD, x264, h264, aac, MP3, OVA, OAV, episode, season ...
 
-[ ] Add prefixes to directories when auto-created
+[x] Add prefixes to directories when auto-created
 
-[ ] Add parameters:
+[x] Add parameters:
 .    -s simulate
-    -d also do dir-dir comparisons (to merge duplicates)
+.    -d also do dir-dir comparisons (to merge duplicates)
 .    -y non interactive. accept defaults
 .    -f similarity threshold (default:50%)
-    -m PREFIX make directory structure, starting with optional PREFIX (don't skip file-file comparisons)
+.    -p PREFIX make directory structure, starting with optional PREFIX (don't skip file-file comparisons)
 
-Remove file from list of target alternatives once it has been moved,
-but not before (in case the first choice is not the correct one).
+[x] Remove file from list of target alternatives once it has been moved,
+    but not before (in case the first choice is not the correct one).
 
 [x] Accept several input paths at once.
 
@@ -44,10 +44,8 @@ Algorithm:
 	        skip
 	     elif one in set:
 	        add other to same set
-	        register {file:set}
 	     else:
 	        add files to new set
-	        register both {file:set}
 
    generate dir_name:
    	    clean shortest name on the set

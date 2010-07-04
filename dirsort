@@ -52,14 +52,69 @@ STRINGS     = ['dvd', 'bdrip', 'dvdrip', 'xvid', 'divx', 'x264',
                'episode', 'season', 'volume', 'vol', 'volumen',
                'extra','episodio', 'temporada'] # lowercase
 
+class Entry (dict):
+    """Model for entries"""
+
+    __getattr__= dict.__getitem__
+    __setattr__= dict.__setitem__
+    __delattr__= dict.__delitem__
+
+    regex      = '|'.join (REGEXES)
+    trans      = string.maketrans (SEP, ' '*len(SEP))
+    del_set    = set([s.lower() for s in STRINGS])
+
+    def __init__ (self, *args):
+        assert len(args) <= 3
+
+        self.dir = False
+        if len(args) == 1:
+            tmp = self.__from_str (args[0])
+            self.path = tmp['path']
+            self.name = tmp['name']
+            self.dir  = tmp['dir']
+
+        elif len(args) > 1:
+            self.path = args[0]
+            self.name = args[1]
+        if len(args) == 3:
+            self.dir  = args[2]
+
+    def process (self, case_sensitive = False):
+        """Cleanup and divide entry's name down to comparable components"""
+        if case_sensitive:
+            tmp = self.name
+        else:
+            tmp = self.name.lower()
+
+        if self.dir == False:
+            tmp, _ = os.path.splitext (tmp)
+
+        # Remove regex matches, split, and disregard unwanted strings
+        tmp = re.sub (self.regex, ' ', tmp)
+        tmp = tmp.translate(self.trans).split()
+        keep = set(tmp).difference(self.del_set)
+
+        return filter(None, keep)
+
+    def __str__ (self):
+        p,n = self['path'], self['name']
+        s   = ['',os.path.sep][self['dir']]
+        return '%s%s' %(os.path.join(p,n), s)
+
+    def __from_str (self, entry_str):
+        is_dir     = bool (entry_str[-1] == os.path.sep)
+        entry_str  = os.path.normpath (entry_str)
+        path   = os.path.dirname  (entry_str)
+        name   = os.path.basename (entry_str)
+
+        return {'path':path, 'name':name, 'dir':is_dir}
+
+
 class Sorter:
     """Class to sort according to similarity factor"""
-    def __init__ (self, options, paths, regexes=REGEXES, sep=SEP, strings=STRINGS):
+    def __init__ (self, options, paths):
         self.options = options
         self.paths   = paths
-        self.regex   = '|'.join(regexes)
-        self.trans   = string.maketrans (sep, ' '*len(sep))
-        self.del_set = set([s.lower() for s in strings])
         self.entries = self.__get_entries ()
         self.results = []
         self.__run()
@@ -74,27 +129,13 @@ class Sorter:
 
             for x in listdir:
                 is_dir = os.path.isdir (os.path.join(path, x))
-                entries.append ({'path':path, 'dir': is_dir, 'name':x})
+                entries.append (Entry(path, x, is_dir))
         return entries
-
-    def process_entry (self, entry):
-        """Cleanup and divide entry's name down to comparable components"""
-        tmp   = entry['name'].lower()
-
-        if entry['dir'] == False:
-            tmp, _ = os.path.splitext (tmp)
-
-        # Remove regex matches, split, and disregard unwanted strings
-        tmp = re.sub (self.regex, ' ', tmp)
-        tmp = tmp.translate(self.trans).split()
-        keep = set(tmp).difference(self.del_set)
-
-        return filter(None, keep)
 
     def __compare (self, entry1, entry2):
         """Return similarity factor as percentage"""
-        aux1    = self.process_entry (entry1)
-        aux2    = self.process_entry (entry2)
+        aux1    = entry1.process()
+        aux2    = entry2.process()
         set_or  = set(aux1) | set(aux2)
         set_and = set(aux1) & set(aux2)
         return (float(len(set_and)) / float(len(set_or)))*100
@@ -126,10 +167,9 @@ class Sorter:
 
 class Mover:
     """Class to move files/dirs according to similarity factor"""
-    def __init__ (self, sorter):
-        self.options  = sorter.options
-        self.entries  = sorter.entries
-        self.results  = sorter.results
+    def __init__ (self, options, results):
+        self.options  = options
+        self.results  = results
         self.used_src = []
         self.log      = []
         self.no_dir   = []
@@ -141,37 +181,23 @@ class Mover:
         for result in self.results:
             x,y,factor = result['x'],result['y'],result['factor']
 
-            print result
-            
-
             if factor < threshold:
-                print 2
                 break
             if   all([x['dir'], y['dir']]):
-                print 3
                 self.__merge_dirs (x,y,factor)
             elif any([x['dir'], y['dir']]):
-                print 4
                 self.__move_file (x,y,factor)
             else:
-                print 5
                 self.no_dir.append ((x,y,factor))
 
         self.__make_dirs()
 
     def __call__ (self):
-        return self.report()
+        return self.__report()
 
-    def report (self):
+    def __report (self):
         for src,dst,status in self.log:
-            src_str  = self.__entry_to_str (src)
-            dst_str  = self.__entry_to_str (dst)
-            print '%s\t%s --> %s'%(['Fail','OK'][status], src_str, dst_str)
-
-    def __entry_to_str (self, entry):
-        p,n = entry['path'], entry['name']
-        s   = ['',os.path.sep][entry['dir']]
-        return '%s%s' %(os.path.join(p,n), s)
+            print '%s\t%s --> %s'%(['Fail','OK'][status], str(src), str(dst))
 
     def __register_operation (self, x, y, status):
         assert not x in self.used_src, 'Source already processed'
@@ -186,9 +212,7 @@ class Mover:
             value, opt = True, 'Y/n'
 
         if self.options.ask:
-            src_str  = self.__entry_to_str (src)
-            dst_str  = self.__entry_to_str (dst)
-            question = '[%.2f%%] %s --> %s\nConfirm? [%s] ' %(factor, src_str, dst_str, opt)
+            question = '[%.2f%%] %s --> %s\nConfirm? [%s] ' %(factor, str(src), str(dst), opt)
 
             while True:
                 answer = raw_input (question)
@@ -237,8 +261,8 @@ class Mover:
         if not self.__confirm (x, y, factor):
             return
 
-        src_pre = self.__entry_to_str(x)
-        dst     = self.__entry_to_str(y)
+        src_pre = str(x)
+        dst     = str(y)
 
         if self.options.demo:
             status = False
@@ -246,11 +270,11 @@ class Mover:
             status = True
 
         for e in os.listdir (src_pre):
-            print e
             if status == False:
                 break
             try:
-                shutil.move (os.path.join(src_pre,e), dst)
+                src = os.path.normpath (os.path.join(src_pre,e))
+                shutil.move (src, dst)
             except:
                 status = False
 
@@ -262,31 +286,31 @@ class Mover:
 
         self.__register_operation (x,y,status)
 
-
     def __make_dirs (self):
-        print 1, self.no_dir
-
         if not self.no_dir:
             return
 
         self.__create_sets ()
 
-        for s in self.sets():
+        for s in self.sets:
             dst = self.__process_set (s)
-            lst      = list(s)
-            try:
-                os.makedirs (dst)
-            except:
-                pass
+            if not self.options.demo:
+                try:
+                    os.makedirs (str(dst))
+                except:
+                    pass
 
-            self.__move_file (s['x'], dst, self.options.factor)
-
+            lst = list(s)
+            for e_str in lst:
+                e = Entry (e_str)
+                self.__move_file (e, dst, self.options.factor)
 
     # Helpers for __make_dirs
     def __create_sets (self):
         for x,y,factor in self.no_dir:
             if x in self.used_src or y in self.used_src:
                 continue
+
             x_set = self.__in_set (x)
             y_set = self.__in_set (y)
 
@@ -297,41 +321,63 @@ class Mover:
             elif y_set:
                 self.__add_to_set (x, y_set)
             else:
-                new_set = set([x,y])
-                self.sets.append (new_set)
+                self.__create_set (x, y)
 
     def __in_set (self, entry):
         """Return candidate set to which an entry belongs, if any"""
         for s in self.sets:
-            if entry in s:
+            if str(entry) in s:
                 return s
 
     def __add_to_set (self, entry, s):
-        s.update(set([entry]))
+        s.update(set([str(entry)]))
 
-    def __processs_set (self, s):
+    def __create_set (self, x, y):
+        self.sets.append (set([str(x), str(y)]))
+
+    def __process_set (self, s):
         """Infere a target-entry for the set"""
-        lst = list(s)
-        parts = []
+        lst       = list(s)
+        entry_lst = []
 
-        for e in lst:
-            parts.append (self.sorter.process_entry (e))
+        for e_str in lst:
+            entry_lst.append (Entry(e_str))
+
+        parts = []
+        for e in entry_lst:
+            parts.append (e.process())
 
         pieces = min (parts, key=len)
         idx = parts.index (pieces)
-        tmp_name = lst[idx]['name']
-        tmp_name = tmp_name.translate(sorter.trans)
-        name_pieces = tmp_name.split()
-        dir_pieces  = [self.options.prefix]
+
+        name_pieces = entry_lst[idx].process(case_sensitive=True)
+
+        if self.options.prefix:
+            dir_pieces = [self.options.prefix]
+        else:
+            dir_pieces  = []
 
         for p in name_pieces:
             if p.lower() in pieces:
                 dir_pieces.append (p)
 
+        path     = entry_lst[0]['path']
         dir_name = NEW_DIR_SEP.join(dir_pieces)
-        path     = lst[0]['path']
 
-        return {'path':path, 'dir': is_dir, 'name':dir_name}
+        # Just in case there is a file with that name
+        if os.path.isfile (os.path.join (path, dir_name)):
+            dir_name = self.__cycle_name (path, dir_name)
+
+        return Entry (path, dir_name, True)
+
+    def __cycle_name (self, path, dir_name):
+        suffix   = 0
+        while True:
+            if not os.path.isfile ('%s%s%s' %(os.path.join (path, dir_name), NEW_DIR_SEP, suffix)):
+                break
+            suffix += 1
+        return NEW_DIR_SEP.join ([dir_name, str(suffix)])
+
 
 
 def main():
@@ -361,8 +407,8 @@ def main():
         args.append (os.getcwd())
 
     sorter = Sorter (options, args)
-    mover  = Mover (sorter)
-    mover.report()
+    mover  = Mover (options, sorter())
+    mover()
 
 if __name__ == "__main__":
     try:

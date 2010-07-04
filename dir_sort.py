@@ -10,8 +10,9 @@ of media files.
 
 It takes the current directory -or alternatively one or more paths as
 parameter- and classifies the files and directories that are similar
-above a specified similarity factor. It works based solely only on the
-names of files and directories in a non-recursive manner.
+that match a similarity factor above a specified threshold. It works
+based solely only on the names of files and directories in a
+non-recursive manner.
 
 Before comparing the names, it removes every component that matches
 the predefined list of regular expressions.
@@ -38,12 +39,15 @@ REGEXES     = ['\[.*?\]', '\(.*?\)', '\d{3,4}x\d{3}',
 
 
 class Sorter:
-    def __init__ (self, options, paths):
+    """Class to sort according to similarity factor"""
+    def __init__ (self, options, paths, sep=SEP, regexes=REGEXES):
         self.options = options
         self.paths   = paths
-        self.trans   = string.maketrans (SEP, ' '*len(SEP))
+        self.regexes = regexes
+        self.trans   = string.maketrans (sep, ' '*len(sep))
         self.entries = self.__get_entries ()
-        self.results = None
+        self.results = []
+        self.run()
 
     def __get_entries (self):
         entries = []
@@ -67,10 +71,13 @@ class Sorter:
         if entry['dir'] == False:
             tmp, _ = os.path.splitext (tmp)
 
-        
-        
-        
-        #stuff with re
+            
+            
+            
+            
+            
+            
+        #stuff with re self.regexes
 
         return tmp
 
@@ -86,7 +93,6 @@ class Sorter:
         entries = self.entries
         total   = float(len(entries))
         count   = 0
-        results = []
 
         for x in self.entries:
             for y in entries:
@@ -98,30 +104,61 @@ class Sorter:
                     continue # Skip dir-dir comparison if possible
 
                 result = {'x':x, 'y':y, 'factor': self.compare (x,y) }
-                results.append(result)
+                self.results.append(result)
 
-            entries.remove(x)
+            entries.remove(x)# No need to compare it on both lists
             count += 1
-            print >> sys.stderr, '%.2f%% done\r' %(min(100.00,(count/total)*200)),
+            print >> sys.stderr, 'Analyzing.. %.2f%%\r' %(min(100.00,(count/total)*200)),
 
         print >> sys.stderr, ''
+        self.results = sorted(self.results, key=operator.itemgetter('factor'), reverse=True)
 
 
-        
-        
-        
-        
-        show(results)
+class Mover:
+    """Class to move files/dirs according to similarity factor"""
+    def __init __(self, sorter):
+        self.options = sorter.options
+        self.entries = sorter.entries
+        self.results = sorter.results
+        self.run()
 
+    def run (self):
+        threshold = self.options.factor
+        for result in self.results:
+            x,y,factor = result['x'],result['y'],result['factor']
 
-    def show (self, results):
-        """Show most similar last"""
-        for x in sorted(results, key=operator.itemgetter('factor')):
-            a,b = x['A'],x['B']
-            if not b[1] and a[1]:
-                a,b = b,a
-            print '%.2f %s \t --> %s' %(x['factor'], a[0], b[0])
+            if factor < treshold:
+                break
 
+            if   all([x['dir'], y['dir']]):
+                if not options.ask:
+                    pass
+                
+                
+            elif any([x['dir'], y['dir']]):
+                if not options.ask:
+                    pass
+                
+                
+            else:
+                self.make_dirs()
+
+    def merge_dirs (self, x, y):
+        pass
+    
+    def move_files (self, x, y):
+        assert not all([x['dir'], y['dir']])
+
+        if x['dir']:
+            x,y = y,x
+
+        src = os.path.join (x['path'], x['name'])
+        dst = os.path.join (y['path'], y['name'])
+        return shutil.move (src, dst)
+    
+    def make_dirs (self):
+        pass
+    
 
 def main():
     parser = optparse.OptionParser (USAGE, epilog=EPILOG)
@@ -149,7 +186,8 @@ def main():
     if args == []:
         args.append (os.getcwd())
 
-    Sorter (options, args).run()
+    sorter = Sorter (options, args)
+    Mover (sorter)
 
 
 if __name__ == "__main__":

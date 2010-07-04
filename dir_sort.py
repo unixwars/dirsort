@@ -136,7 +136,7 @@ class Mover:
         for result in self.results:
             x,y,factor = result['x'],result['y'],result['factor']
 
-            if factor < treshold:
+            if factor < threshold:
                 break
             if   all([x['dir'], y['dir']]):
                 self.merge_dirs (x,y,factor)
@@ -159,7 +159,7 @@ class Mover:
         src = os.path.join (x['path'], x['name'])
         dst = os.path.join (y['path'], y['name'])
 
-        if not confirm (x, y, factor):
+        if not self.confirm (x, y, factor):
             return
 
         status = True
@@ -186,7 +186,7 @@ class Mover:
         else:
             value, opt = True, 'Y/n'
 
-        if self.ask:
+        if self.options.ask:
             src_str  = '%s%s' %(os.path.join(src['path'],src['name']), ['',os.path.sep][src['dir']])
             dst_str  = '%s%s' %(os.path.join(dst['path'],dst['name']), ['',os.path.sep][dst['dir']])
             question = '[%.2f] %s --> %s\nConfirm? [%s]' %(factor, src_str, dst_str, opt)
@@ -232,13 +232,6 @@ def main():
         args.append (os.getcwd())
 
     sorter = Sorter (options, args)
-
-    #for r in sorter.results:
-    #    print r['factor'], r['x']['name'], r['y']['name']
-
-    #from pprint import pprint
-    #pprint (sorter.results)
-
     Mover (sorter)
 
 

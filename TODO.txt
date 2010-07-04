@@ -1,4 +1,4 @@
-[ ] Add regular expressions of things to erase:
+[x] Add regular expressions of things to erase:
     \[.*?\]
     \(.*?\)
     \d\d\dx\d\d\d
@@ -6,19 +6,19 @@
     \d+
     DVD, BDRip, DVDRip, XviD, x264, h264, aac, MP3, OVA, OAV, episode, season ...
 
-[x] Add prefixes to directories when auto-created
+[ ] Add prefixes to directories when auto-created
 
 [ ] Add parameters:
-    -s simulate
+.    -s simulate
     -d also do dir-dir comparisons (to merge duplicates)
-    -y non interactive. accept defaults
-    -f similarity threshold (default:50%)
+.    -y non interactive. accept defaults
+.    -f similarity threshold (default:50%)
     -m PREFIX make directory structure, starting with optional PREFIX (don't skip file-file comparisons)
 
 Remove file from list of target alternatives once it has been moved,
 but not before (in case the first choice is not the correct one).
 
-Accept several input paths at once.
+[x] Accept several input paths at once.
 
 
 Algorithm:

@@ -15,7 +15,16 @@ based solely only on the names of files and directories in a
 non-recursive manner.
 
 Before comparing the names, it removes every component that matches
-the predefined list of regular expressions.
+the list of regular expressions. Then, splits by the given list of
+separators. Then removes unwanted substrings. And then it analyzes
+similarities among the remaining pieces.
+
+It then moves files and merges directories based on that
+analysis.
+
+WARNING: it will overwrite files if they already exist in the target
+directory. Use a custom Mover class if that is not the desired
+behavior.
 """
 
 import operator
@@ -31,20 +40,26 @@ __version__ = '1.0'
 USAGE       = '%prog [options] paths'
 EPILOG      = 'Report bugs to taher@unixwars.com'
 
-SEP         = '_-+~.·:;·()[]¡!¿?<>'
-REGEXES     = ['\[.*?\]', '\(.*?\)', '\d{3,4}x\d{3}',
-               's\d{1,2}[ex]{1,2}', '\d+', 'dvd', 'bdrip', 'dvdrip',
-               'xvid', 'divx', 'x264', 'h264', 'aac', 'mp3', 'ova',
-               'oav', 'episode', 'season', 'episodio', 'temporada']
+REGEXES     = ['\[.*?\]' , '\(.*?\)',# strings in brackets or parens
+               's\d{1,2}[ex]\d{1,2}',# episode numbers
+               '\d{3,4}x\d{3}',      # video resolutions
+               '\d+',                # numbers
+               ]
+SEP         = ' _-+~.·:;·()[]¡!¿?<>' # word boundaries
+STRINGS     = ['dvd', 'bdrip', 'dvdrip', 'xvid', 'divx', 'x264',
+               'h264', 'aac', 'mp3', 'ova', 'hdtv', 'vtv', 'notv',
+               '2hd', 'hd', '720p' '1080p', 'lol', 'fqm', 'oav',
+               'episode', 'season', 'episodio', 'temporada'] # lowercased
 
 
 class Sorter:
     """Class to sort according to similarity factor"""
-    def __init__ (self, options, paths, sep=SEP, regexes=REGEXES):
+    def __init__ (self, options, paths, regexes=REGEXES, sep=SEP, strings=STRINGS):
         self.options = options
         self.paths   = paths
-        self.regexes = regexes
+        self.regex   = '|'.join(regexes)
         self.trans   = string.maketrans (sep, ' '*len(sep))
+        self.del_set = set([s.lower() for s in strings])
         self.entries = self.__get_entries ()
         self.results = []
         self.run()
@@ -56,30 +71,24 @@ class Sorter:
 
             for x in listdir:
                 is_dir = os.path.isdir (os.path.join(path, x))
-                entries.append ({'path':path, 'dir', is_dir, 'name':x})
+                entries.append ({'path':path, 'dir': is_dir, 'name':x})
         return entries
 
     def __process_entry (self, entry):
-        """Cleanup and divide entry's name down to comparable  components"""
-        tmp   = self.__cleanup (entry)
-        lst   = tmp.translate(self.trans).split()
-        return filter(None, lst)
-
-    def __cleanup_str (self, entry):
+        """Cleanup and divide entry's name down to comparable components"""
         tmp   = entry['name'].lower()
 
         if entry['dir'] == False:
             tmp, _ = os.path.splitext (tmp)
 
-            
-            
-            
-            
-            
-            
-        #stuff with re self.regexes
+        # Remove regex matches
+        tmp = re.sub (self.regex, ' ', tmp)
+        # Split by separators
+        tmp = tmp.translate(self.trans).split()
+        # Don't keep the unwanted strings
+        keep = set(tmp).difference(self.del_set)
 
-        return tmp
+        return filter(None, keep)
 
     def compare (self, entry1, entry2):
         """Return similarity factor as percentage"""
@@ -116,7 +125,7 @@ class Sorter:
 
 class Mover:
     """Class to move files/dirs according to similarity factor"""
-    def __init __(self, sorter):
+    def __init__ (self, sorter):
         self.options = sorter.options
         self.entries = sorter.entries
         self.results = sorter.results
@@ -129,24 +138,19 @@ class Mover:
 
             if factor < treshold:
                 break
-
             if   all([x['dir'], y['dir']]):
-                if not options.ask:
-                    pass
-                
-                
+                self.merge_dirs (x,y,factor)
             elif any([x['dir'], y['dir']]):
-                if not options.ask:
-                    pass
-                
-                
+                self.move_files (x,y,factor)
             else:
                 self.make_dirs()
 
-    def merge_dirs (self, x, y):
-        pass
-    
-    def move_files (self, x, y):
+    def merge_dirs (self, x, y, factpr):
+        assert all([x['dir'], y['dir']])
+        assert False, 'Unimplemented'
+        
+        
+    def move_files (self, x, y, factor):
         assert not all([x['dir'], y['dir']])
 
         if x['dir']:
@@ -154,11 +158,52 @@ class Mover:
 
         src = os.path.join (x['path'], x['name'])
         dst = os.path.join (y['path'], y['name'])
-        return shutil.move (src, dst)
-    
+
+        if not confirm (x, y, factor):
+            return
+
+        status = True
+        if not self.options.demo:
+            try:
+                shutil.move (src, dst)
+            except:
+                status = False
+
+        self.register_operation (x,y,status)
+
+
     def make_dirs (self):
-        pass
-    
+        assert False, 'Unimplemented'
+        
+        
+    def register_operation (self, x, y, status):
+        assert False, 'Unimplemented'
+        
+        
+    def confirm (self, src, dst, factor):
+        if factor < self.options.factor:
+            value, opt = False, 'y/N'
+        else:
+            value, opt = True, 'Y/n'
+
+        if self.ask:
+            src_str  = '%s%s' %(os.path.join(src['path'],src['name']), ['',os.path.sep][src['dir']])
+            dst_str  = '%s%s' %(os.path.join(dst['path'],dst['name']), ['',os.path.sep][dst['dir']])
+            question = '[%.2f] %s --> %s\nConfirm? [%s]' %(factor, src_str, dst_str, opt)
+
+            while True:
+                answer = raw_input (question)
+                if answer.lower() == 'y':
+                    value = True
+                    break
+                elif answer.lower() == 'n':
+                    value = False
+                    break
+                elif answer == '':
+                    break
+
+        return value
+
 
 def main():
     parser = optparse.OptionParser (USAGE, epilog=EPILOG)
@@ -187,6 +232,13 @@ def main():
         args.append (os.getcwd())
 
     sorter = Sorter (options, args)
+
+    #for r in sorter.results:
+    #    print r['factor'], r['x']['name'], r['y']['name']
+
+    #from pprint import pprint
+    #pprint (sorter.results)
+
     Mover (sorter)
 
 

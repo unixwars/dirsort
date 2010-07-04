@@ -42,14 +42,15 @@ EPILOG      = 'Report bugs to taher@unixwars.com'
 
 REGEXES     = ['\[.*?\]' , '\(.*?\)',# strings in brackets or parens
                's\d{1,2}[ex]\d{1,2}',# episode numbers
-               '\d{3,4}x\d{3}',      # video resolutions
+               '\d{3,4}x\d{3,4}',    # video resolutions
                '\d+',                # numbers
                ]
-SEP         = ' _-+~.·:;·()[]¡!¿?<>' # word boundaries
+SEP         = """ _-+~.·:;·()[]¡!¿?<>"'`""" # word boundaries
 STRINGS     = ['dvd', 'bdrip', 'dvdrip', 'xvid', 'divx', 'x264',
                'h264', 'aac', 'mp3', 'ova', 'hdtv', 'vtv', 'notv',
                '2hd', 'hd', '720p' '1080p', 'lol', 'fqm', 'oav',
-               'episode', 'season', 'episodio', 'temporada'] # lowercased
+               'episode', 'season', 'volume', 'vol', 'volumen',
+               'extra','episodio', 'temporada'] # lowercase
 
 
 class Sorter:
@@ -62,7 +63,10 @@ class Sorter:
         self.del_set = set([s.lower() for s in strings])
         self.entries = self.__get_entries ()
         self.results = []
-        self.run()
+        self.__run()
+
+    def __call__ (self):
+        return self.results
 
     def __get_entries (self):
         entries = []
@@ -81,16 +85,14 @@ class Sorter:
         if entry['dir'] == False:
             tmp, _ = os.path.splitext (tmp)
 
-        # Remove regex matches
+        # Remove regex matches, split, and disregard unwanted strings
         tmp = re.sub (self.regex, ' ', tmp)
-        # Split by separators
         tmp = tmp.translate(self.trans).split()
-        # Don't keep the unwanted strings
         keep = set(tmp).difference(self.del_set)
 
         return filter(None, keep)
 
-    def compare (self, entry1, entry2):
+    def __compare (self, entry1, entry2):
         """Return similarity factor as percentage"""
         aux1    = self.__process_entry (entry1)
         aux2    = self.__process_entry (entry2)
@@ -98,7 +100,7 @@ class Sorter:
         set_and = set(aux1) & set(aux2)
         return (float(len(set_and)) / float(len(set_or)))*100
 
-    def run (self):
+    def __run (self):
         entries = self.entries
         total   = float(len(entries))
         count   = 0
@@ -107,17 +109,17 @@ class Sorter:
             for y in entries:
                 if x == y:
                     continue # Don't compare with itself
-                elif self.options.prefix == None and not (x['dir'] or y['dir']):
+                elif self.options.prefix == None and all((not x['dir'], not y['dir'])):
                     continue # Skip file-file comparison if possible
-                elif self.options.dirs == False and (x['dir'] and y['dir']):
+                elif self.options.dirs == False and all((x['dir'],y['dir'])):
                     continue # Skip dir-dir comparison if possible
 
-                result = {'x':x, 'y':y, 'factor': self.compare (x,y) }
+                result = {'x':x, 'y':y, 'factor': self.__compare (x,y) }
                 self.results.append(result)
 
             entries.remove(x)# No need to compare it on both lists
             count += 1
-            print >> sys.stderr, 'Analyzing.. %.2f%%\r' %(min(100.00,(count/total)*200)),
+            print >> sys.stderr, '\rAnalyzing.. %.2f%%' %(min(100.00,(count/total)*200)),
 
         print >> sys.stderr, ''
         self.results = sorted(self.results, key=operator.itemgetter('factor'), reverse=True)
@@ -126,12 +128,14 @@ class Sorter:
 class Mover:
     """Class to move files/dirs according to similarity factor"""
     def __init__ (self, sorter):
-        self.options = sorter.options
-        self.entries = sorter.entries
-        self.results = sorter.results
-        self.run()
+        self.options  = sorter.options
+        self.entries  = sorter.entries
+        self.results  = sorter.results
+        self.used_src = []
+        self.log      = []
+        self.__run()
 
-    def run (self):
+    def __run (self):
         threshold = self.options.factor
         for result in self.results:
             x,y,factor = result['x'],result['y'],result['factor']
@@ -141,20 +145,33 @@ class Mover:
             if   all([x['dir'], y['dir']]):
                 self.merge_dirs (x,y,factor)
             elif any([x['dir'], y['dir']]):
-                self.move_files (x,y,factor)
+                self.move_file (x,y,factor)
             else:
                 self.make_dirs()
 
-    def merge_dirs (self, x, y, factpr):
-        assert all([x['dir'], y['dir']])
-        assert False, 'Unimplemented'
-        
-        
-    def move_files (self, x, y, factor):
+    def __call__ (self):
+        return self.report()
+
+    def report (self):
+        for src,dst,status in self.log:
+            src_str  = '%s%s' %(os.path.join(src['path'],src['name']), ['',os.path.sep][src['dir']])
+            dst_str  = '%s%s' %(os.path.join(dst['path'],dst['name']), ['',os.path.sep][dst['dir']])
+            print '%s\t%s --> %s'%(['Error','OK'][status], src_str, dst_str)
+
+    def register_operation (self, x, y, status):
+        assert not x in self.used_src, 'Source already processed'
+
+        self.used_src.append(x)
+        self.log.append ((x,y,status))
+
+    def move_file (self, x, y, factor):
         assert not all([x['dir'], y['dir']])
 
         if x['dir']:
             x,y = y,x
+
+        if x in self.used_src:
+            return
 
         src = os.path.join (x['path'], x['name'])
         dst = os.path.join (y['path'], y['name'])
@@ -162,13 +179,25 @@ class Mover:
         if not self.confirm (x, y, factor):
             return
 
-        status = True
+        status = False
         if not self.options.demo:
             try:
                 shutil.move (src, dst)
+                status = True
             except:
-                status = False
+                pass
 
+        self.register_operation (x,y,status)
+
+    def merge_dirs (self, x, y, factpr):
+        assert all([x['dir'], y['dir']])
+
+        if x in self.used_src:
+            return
+
+        assert False, 'Unimplemented'
+        
+        
         self.register_operation (x,y,status)
 
 
@@ -176,10 +205,9 @@ class Mover:
         assert False, 'Unimplemented'
         
         
-    def register_operation (self, x, y, status):
-        assert False, 'Unimplemented'
-        
-        
+        self.register_operation (x,y,status)
+
+
     def confirm (self, src, dst, factor):
         if factor < self.options.factor:
             value, opt = False, 'y/N'
@@ -189,7 +217,7 @@ class Mover:
         if self.options.ask:
             src_str  = '%s%s' %(os.path.join(src['path'],src['name']), ['',os.path.sep][src['dir']])
             dst_str  = '%s%s' %(os.path.join(dst['path'],dst['name']), ['',os.path.sep][dst['dir']])
-            question = '[%.2f] %s --> %s\nConfirm? [%s]' %(factor, src_str, dst_str, opt)
+            question = '[%.2f%%] %s --> %s\nConfirm? [%s] ' %(factor, src_str, dst_str, opt)
 
             while True:
                 answer = raw_input (question)
@@ -232,8 +260,11 @@ def main():
         args.append (os.getcwd())
 
     sorter = Sorter (options, args)
-    Mover (sorter)
-
+    mover  = Mover (sorter)
+    mover.report()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print ''

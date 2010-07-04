@@ -22,9 +22,14 @@ but not before (in case the first choice is not the correct one).
 
 
 Algorithm:
-1)
-	sort threshold
+0) sort:
+	take lowercase basename
+	remove extensions and regex matches
+	substitute all separators, and split
+	calculate similarity factor = number of common parts / number of sum of the parts
+	sort to factor
 
+1) simple_move:
 	when factor (dir-dir) >= threshold:
 	     merge
 	     register moved_dir, and threshold

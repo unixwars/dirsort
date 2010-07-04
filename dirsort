@@ -6,20 +6,19 @@
 
 """
 Directory sorter: This script is used to classify assorted collections
-of media files.
+of media files
 
 It takes the current directory -or alternatively one or more paths as
-parameter- and classifies the files and directories that are similar
-that match a similarity factor above a specified threshold. It works
-based solely only on the names of files and directories in a
-non-recursive manner.
+parameter- and classifies the files and directories that match a
+similarity factor above a specified threshold. It works based solely
+on the names of files and directories in a non-recursive manner.
 
 Before comparing the names, it removes every component that matches
 the list of regular expressions. Then, splits by the given list of
-separators. Then removes unwanted substrings. And then it analyzes
-similarities among the remaining pieces.
+separators, removes unwanted substrings, and analyzes similarities
+among the remaining pieces.
 
-It then moves files and merges directories based on that
+Afterwards it moves files and merges directories based on that
 analysis.
 
 WARNING: it will overwrite files if they already exist in the target
@@ -40,18 +39,18 @@ __version__ = '1.0'
 USAGE       = '%prog [options] paths'
 EPILOG      = 'Report bugs to taher@unixwars.com'
 
+NEW_DIR_SEP = '_' # Separator used for parts of new directory names
 REGEXES     = ['\[.*?\]' , '\(.*?\)',# strings in brackets or parens
                's\d{1,2}[ex]\d{1,2}',# episode numbers
                '\d{3,4}x\d{3,4}',    # video resolutions
                '\d+',                # numbers
                ]
-SEP         = """ _-+~.·:;·()[]¡!¿?<>"'`""" # word boundaries
+SEP         = """ _-+~.·:;·()[]¡!¿?<>"'`""" # word separators
 STRINGS     = ['dvd', 'bdrip', 'dvdrip', 'xvid', 'divx', 'x264',
                'h264', 'aac', 'mp3', 'ova', 'hdtv', 'vtv', 'notv',
                '2hd', 'hd', '720p' '1080p', 'lol', 'fqm', 'oav',
                'episode', 'season', 'volume', 'vol', 'volumen',
                'extra','episodio', 'temporada'] # lowercase
-
 
 class Sorter:
     """Class to sort according to similarity factor"""
@@ -78,7 +77,7 @@ class Sorter:
                 entries.append ({'path':path, 'dir': is_dir, 'name':x})
         return entries
 
-    def __process_entry (self, entry):
+    def process_entry (self, entry):
         """Cleanup and divide entry's name down to comparable components"""
         tmp   = entry['name'].lower()
 
@@ -94,8 +93,8 @@ class Sorter:
 
     def __compare (self, entry1, entry2):
         """Return similarity factor as percentage"""
-        aux1    = self.__process_entry (entry1)
-        aux2    = self.__process_entry (entry2)
+        aux1    = self.process_entry (entry1)
+        aux2    = self.process_entry (entry2)
         set_or  = set(aux1) | set(aux2)
         set_and = set(aux1) & set(aux2)
         return (float(len(set_and)) / float(len(set_or)))*100
@@ -133,6 +132,8 @@ class Mover:
         self.results  = sorter.results
         self.used_src = []
         self.log      = []
+        self.no_dir   = []
+        self.sets     = []
         self.__run()
 
     def __run (self):
@@ -140,83 +141,53 @@ class Mover:
         for result in self.results:
             x,y,factor = result['x'],result['y'],result['factor']
 
+            print result
+            
+
             if factor < threshold:
+                print 2
                 break
             if   all([x['dir'], y['dir']]):
-                self.merge_dirs (x,y,factor)
+                print 3
+                self.__merge_dirs (x,y,factor)
             elif any([x['dir'], y['dir']]):
-                self.move_file (x,y,factor)
+                print 4
+                self.__move_file (x,y,factor)
             else:
-                self.make_dirs()
+                print 5
+                self.no_dir.append ((x,y,factor))
+
+        self.__make_dirs()
 
     def __call__ (self):
         return self.report()
 
     def report (self):
         for src,dst,status in self.log:
-            src_str  = '%s%s' %(os.path.join(src['path'],src['name']), ['',os.path.sep][src['dir']])
-            dst_str  = '%s%s' %(os.path.join(dst['path'],dst['name']), ['',os.path.sep][dst['dir']])
-            print '%s\t%s --> %s'%(['Error','OK'][status], src_str, dst_str)
+            src_str  = self.__entry_to_str (src)
+            dst_str  = self.__entry_to_str (dst)
+            print '%s\t%s --> %s'%(['Fail','OK'][status], src_str, dst_str)
 
-    def register_operation (self, x, y, status):
+    def __entry_to_str (self, entry):
+        p,n = entry['path'], entry['name']
+        s   = ['',os.path.sep][entry['dir']]
+        return '%s%s' %(os.path.join(p,n), s)
+
+    def __register_operation (self, x, y, status):
         assert not x in self.used_src, 'Source already processed'
 
         self.used_src.append(x)
         self.log.append ((x,y,status))
 
-    def move_file (self, x, y, factor):
-        assert not all([x['dir'], y['dir']])
-
-        if x['dir']:
-            x,y = y,x
-
-        if x in self.used_src:
-            return
-
-        src = os.path.join (x['path'], x['name'])
-        dst = os.path.join (y['path'], y['name'])
-
-        if not self.confirm (x, y, factor):
-            return
-
-        status = False
-        if not self.options.demo:
-            try:
-                shutil.move (src, dst)
-                status = True
-            except:
-                pass
-
-        self.register_operation (x,y,status)
-
-    def merge_dirs (self, x, y, factpr):
-        assert all([x['dir'], y['dir']])
-
-        if x in self.used_src:
-            return
-
-        assert False, 'Unimplemented'
-        
-        
-        self.register_operation (x,y,status)
-
-
-    def make_dirs (self):
-        assert False, 'Unimplemented'
-        
-        
-        self.register_operation (x,y,status)
-
-
-    def confirm (self, src, dst, factor):
+    def __confirm (self, src, dst, factor):
         if factor < self.options.factor:
             value, opt = False, 'y/N'
         else:
             value, opt = True, 'Y/n'
 
         if self.options.ask:
-            src_str  = '%s%s' %(os.path.join(src['path'],src['name']), ['',os.path.sep][src['dir']])
-            dst_str  = '%s%s' %(os.path.join(dst['path'],dst['name']), ['',os.path.sep][dst['dir']])
+            src_str  = self.__entry_to_str (src)
+            dst_str  = self.__entry_to_str (dst)
             question = '[%.2f%%] %s --> %s\nConfirm? [%s] ' %(factor, src_str, dst_str, opt)
 
             while True:
@@ -231,6 +202,136 @@ class Mover:
                     break
 
         return value
+
+    def __move_file (self, x, y, factor):
+        assert not all([x['dir'], y['dir']])
+
+        if x['dir']:
+            x,y = y,x
+
+        if x in self.used_src:
+            return
+
+        src = os.path.join (x['path'], x['name'])
+        dst = os.path.join (y['path'], y['name'])
+
+        if not self.__confirm (x, y, factor):
+            return
+
+        status = False
+        if not self.options.demo:
+            try:
+                shutil.move (src, dst)
+                status = True
+            except:
+                pass
+
+        self.__register_operation (x,y,status)
+
+    def __merge_dirs (self, x, y, factor):
+        assert all([x['dir'], y['dir']])
+
+        if x in self.used_src:
+            return
+
+        if not self.__confirm (x, y, factor):
+            return
+
+        src_pre = self.__entry_to_str(x)
+        dst     = self.__entry_to_str(y)
+
+        if self.options.demo:
+            status = False
+        else:
+            status = True
+
+        for e in os.listdir (src_pre):
+            print e
+            if status == False:
+                break
+            try:
+                shutil.move (os.path.join(src_pre,e), dst)
+            except:
+                status = False
+
+        if status == True:
+            try:
+                os.removedirs (src_pre)
+            except:
+                status = False
+
+        self.__register_operation (x,y,status)
+
+
+    def __make_dirs (self):
+        print 1, self.no_dir
+
+        if not self.no_dir:
+            return
+
+        self.__create_sets ()
+
+        for s in self.sets():
+            dst = self.__process_set (s)
+            lst      = list(s)
+            try:
+                os.makedirs (dst)
+            except:
+                pass
+
+            self.__move_file (s['x'], dst, self.options.factor)
+
+
+    # Helpers for __make_dirs
+    def __create_sets (self):
+        for x,y,factor in self.no_dir:
+            if x in self.used_src or y in self.used_src:
+                continue
+            x_set = self.__in_set (x)
+            y_set = self.__in_set (y)
+
+            if x_set and y_set:
+                continue
+            elif x_set:
+                self.__add_to_set (y, x_set)
+            elif y_set:
+                self.__add_to_set (x, y_set)
+            else:
+                new_set = set([x,y])
+                self.sets.append (new_set)
+
+    def __in_set (self, entry):
+        """Return candidate set to which an entry belongs, if any"""
+        for s in self.sets:
+            if entry in s:
+                return s
+
+    def __add_to_set (self, entry, s):
+        s.update(set([entry]))
+
+    def __processs_set (self, s):
+        """Infere a target-entry for the set"""
+        lst = list(s)
+        parts = []
+
+        for e in lst:
+            parts.append (self.sorter.process_entry (e))
+
+        pieces = min (parts, key=len)
+        idx = parts.index (pieces)
+        tmp_name = lst[idx]['name']
+        tmp_name = tmp_name.translate(sorter.trans)
+        name_pieces = tmp_name.split()
+        dir_pieces  = [self.options.prefix]
+
+        for p in name_pieces:
+            if p.lower() in pieces:
+                dir_pieces.append (p)
+
+        dir_name = NEW_DIR_SEP.join(dir_pieces)
+        path     = lst[0]['path']
+
+        return {'path':path, 'dir': is_dir, 'name':dir_name}
 
 
 def main():

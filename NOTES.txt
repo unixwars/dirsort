@@ -48,4 +48,12 @@ Algorithm:
 	     else:
 	        add files to new set
 	        register both {file:set}
-   generate dir_name: clean first item of each set
+
+   generate dir_name:
+   	    clean shortest name on the set
+	    split
+
+	    for p in pieces:
+	    	if p.lower() in intersect:
+		dirname += p
+	    dirname = '_'.join(dirname)

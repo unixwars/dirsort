@@ -5,7 +5,7 @@
 # Licensed: GPL v2.        http://unixwars.com
 
 """
-Directory sorter: This script is used to classify assorted collections
+Directory sorter: This script is used to classify unsorted collections
 of media files
 
 It takes the current directory -or alternatively one or more paths as
@@ -141,7 +141,7 @@ class Sorter:
         return (float(len(set_and)) / float(len(set_or)))*100
 
     def __run (self):
-        entries = self.entries
+        entries = self.entries[:]
         total   = float(len(entries))
         count   = 0
 
@@ -337,20 +337,12 @@ class Mover:
 
     def __process_set (self, s):
         """Infere a target-entry for the set"""
-        lst       = list(s)
-        entry_lst = []
-
-        for e_str in lst:
-            entry_lst.append (Entry(e_str))
-
-        parts = []
-        for e in entry_lst:
-            parts.append (e.process())
-
-        pieces = min (parts, key=len)
-        idx = parts.index (pieces)
-
-        name_pieces = entry_lst[idx].process(case_sensitive=True)
+        entry_lst   = [Entry(x) for x in list(s)]
+        parts       = [x.process() for x in entry_lst]
+        pieces      = min (parts, key=len)
+        idx         = parts.index (pieces)
+        entry       = entry_lst[idx]
+        name_pieces = entry.name.translate (entry.trans).split()
 
         if self.options.prefix:
             dir_pieces = [self.options.prefix]

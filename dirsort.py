@@ -53,16 +53,13 @@ class Entry (dict):
 
         elif len(args) > 1:
             self.path = args[0]
-            self.name = args[1]
+            self.name = ['',args[1]][bool(args[1])]
         if len(args) == 3:
             self.dir  = args[2]
 
-    def process (self, case_sensitive = False):
+    def process (self):
         """Cleanup and divide entry's name down to comparable components"""
-        if case_sensitive:
-            tmp = self.name
-        else:
-            tmp = self.name.lower()
+        tmp = self.name.lower()
 
         if self.dir == False:
             tmp, _ = os.path.splitext (tmp)
@@ -76,8 +73,10 @@ class Entry (dict):
 
     def __str__ (self):
         p,n = self['path'], self['name']
-        s   = ['',os.path.sep][self['dir']]
-        return '%s%s' %(os.path.join(p,n), s)
+        pn  = os.path.normpath(os.path.join(p,n))
+        if self.dir:
+            pn += os.path.sep
+        return pn
 
     def __from_str (self, entry_str):
         is_dir     = bool (entry_str[-1] == os.path.sep)

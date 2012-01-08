@@ -17,9 +17,9 @@ DIR2 = 'FooBar/'
 DIRS = [DIR1, DIR2]
 
 class Options:
-    def __init__(self, prefix, dirs):
-        self.prefix = prefix
-        self.dirs = dirs
+    def __init__(self):
+        self.prefix = None
+        self.dirs = False
 
 class TestSorter(object):
     @classmethod
@@ -31,28 +31,25 @@ class TestSorter(object):
         for d in DIRS:
             os.mkdir(os.path.join(klass.tempdir, d))
 
+        klass.sorter = Sorter(Options(), [klass.tempdir])
+
     @classmethod
     def teardown_class(klass):
         shutil.rmtree(klass.tempdir)
-        pass
 
     def test_compare(self):
-        o = Options(prefix=None, dirs=False)
-        s = Sorter(o, [TestSorter.tempdir])
         e1 = Entry(os.path.join(TestSorter.tempdir, FILE1))
         e2 = Entry(os.path.join(TestSorter.tempdir, FILE2))
         e3 = Entry(os.path.join(TestSorter.tempdir, DIR1))
 
-        f1vs3 = s._compare(e1,e3)
+        f1vs3 = TestSorter.sorter._compare(e1,e3)
         assert_almost_equal(f1vs3, 100)
 
-        f2vs3 = s._compare(e2,e3)
+        f2vs3 = TestSorter.sorter._compare(e2,e3)
         assert_almost_equal(f2vs3, 0)
 
     def test_run(self):
-        o = Options(prefix=None, dirs=False)
-        s = Sorter(o, [TestSorter.tempdir])
-        result = s()
+        result = TestSorter.sorter()
         for r in result:
             if r['factor'] > 99.999:
                 assert_true(r['x']['name'] in r['y']['name'] or r['y']['name'] in r['x']['name'])

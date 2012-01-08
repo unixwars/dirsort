@@ -153,9 +153,9 @@ class Mover:
         self.log      = []
         self.no_dir   = []
         self.sets     = []
-        self.__run()
+        self._run()
 
-    def __run (self):
+    def _run (self):
         threshold = self.options.factor
         for result in self.results:
             x,y,factor = result['x'],result['y'],result['factor']
@@ -163,28 +163,28 @@ class Mover:
             if factor < threshold:
                 break
             if   all([x['dir'], y['dir']]):
-                self.__merge_dirs (x,y,factor)
+                self._merge_dirs (x,y,factor)
             elif any([x['dir'], y['dir']]):
-                self.__move_file (x,y,factor)
+                self._move_file (x,y,factor)
             else:
                 self.no_dir.append ((x,y,factor))
 
-        self.__make_dirs()
+        self._make_dirs()
 
     def __call__ (self):
-        return self.__report()
+        return self._report()
 
-    def __report (self):
+    def _report (self):
         for src,dst,status in self.log:
             print '%s\t%s --> %s'%(['Fail','OK'][status], str(src), str(dst))
 
-    def __register_operation (self, x, y, status):
+    def _register_operation (self, x, y, status):
         assert not x in self.used_src, 'Source already processed'
 
         self.used_src.append(x)
         self.log.append ((x,y,status))
 
-    def __confirm (self, src, dst, factor):
+    def _confirm (self, src, dst, factor):
         if factor < self.options.factor:
             value, opt = False, 'y/N'
         else:
@@ -206,7 +206,7 @@ class Mover:
 
         return value
 
-    def __move_file (self, x, y, factor):
+    def _move_file (self, x, y, factor):
         assert not all([x['dir'], y['dir']])
 
         if x['dir']:
@@ -218,7 +218,7 @@ class Mover:
         src = os.path.join (x['path'], x['name'])
         dst = os.path.join (y['path'], y['name'])
 
-        if not self.__confirm (x, y, factor):
+        if not self._confirm (x, y, factor):
             return
 
         status = False
@@ -229,15 +229,15 @@ class Mover:
             except:
                 pass
 
-        self.__register_operation (x,y,status)
+        self._register_operation (x,y,status)
 
-    def __merge_dirs (self, x, y, factor):
+    def _merge_dirs (self, x, y, factor):
         assert all([x['dir'], y['dir']])
 
         if x in self.used_src:
             return
 
-        if not self.__confirm (x, y, factor):
+        if not self._confirm (x, y, factor):
             return
 
         src_pre = str(x)
@@ -263,9 +263,9 @@ class Mover:
             except:
                 status = False
 
-        self.__register_operation (x,y,status)
+        self._register_operation (x,y,status)
 
-    def __make_dirs (self):
+    def _make_dirs (self):
         if not self.no_dir:
             return
 
@@ -282,7 +282,7 @@ class Mover:
             lst = list(s)
             for e_str in lst:
                 e = Entry (e_str)
-                self.__move_file (e, dst, self.options.factor)
+                self._move_file (e, dst, self.options.factor)
 
     # Helpers for __make_dirs
     def __create_sets (self):

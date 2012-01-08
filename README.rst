@@ -9,7 +9,11 @@ This script is used to classify unsorted collections of media files
 It takes the current directory -or alternatively one or more paths as
 parameter- and classifies the files and directories that match a
 similarity factor above a specified threshold. It works based solely
-on the names of files and directories in a non-recursive manner.
+on the names of files and directories in a non-recursive manner. It will
+try to associate the files it finds to the directories already present.
+If the option to create new directories is specified, it will attempt to
+make this association and, on failure, it will create a suitable
+directory for the cluster of files being analyzed.
 
 Before comparing the names, it removes every component that matches
 the list of regular expressions. Then, splits by the given list of
@@ -19,7 +23,7 @@ among the remaining pieces.
 Afterwards it moves files and merges directories based on that
 analysis.
 
-.. Warning::
+.. WARNING::
    It will overwrite files if they already exist in the target
    directory. Use a custom Mover class if that is not the desired
    behavior.

@@ -2,10 +2,10 @@ from dirsort import Entry
 from nose.tools import assert_equal
 
 DIR  = '/mnt/downloads/video/'
-FILE = 'Future.Boy.Conan.S01E05.HDTV.XviD-LOL.1280x960.avi'
+FILE = 'Battlestar.Galactica.S01E05.HDTV.XviD-LOL.1280x960.avi'
 FULL = DIR + FILE
-SET1  = set(['future', 'boy', 'conan'])
-SET2  = set(['Future', 'Boy', 'Conan'])
+SET1  = set(['battlestar', 'galactica'])
+SET2  = set(['Battlestar', 'Galactica'])
 
 class TestEntry(object):
     def test_init_1(self):

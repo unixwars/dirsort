@@ -90,16 +90,18 @@ class Entry (dict):
 class Sorter:
     """Class to sort according to similarity factor"""
     def __init__ (self, options, paths):
+        assert type(paths) == list
         self.options = options
         self.paths   = paths
-        self.entries = self.__get_entries ()
+        self.entries = self._get_entries ()
         self.results = []
-        self.__run()
 
     def __call__ (self):
+        if not self.results:
+            self._run()
         return self.results
 
-    def __get_entries (self):
+    def _get_entries (self):
         entries = []
         for path in self.paths:
             listdir = os.listdir (path)
@@ -109,7 +111,7 @@ class Sorter:
                 entries.append (Entry(path, x, is_dir))
         return entries
 
-    def __compare (self, entry1, entry2):
+    def _compare (self, entry1, entry2):
         """Return similarity factor as percentage"""
         aux1    = entry1.process()
         aux2    = entry2.process()
@@ -117,7 +119,7 @@ class Sorter:
         set_and = set(aux1) & set(aux2)
         return (float(len(set_and)) / float(len(set_or)))*100
 
-    def __run (self):
+    def _run (self):
         entries = self.entries[:]
         total   = float(len(entries))
         count   = 0
@@ -126,12 +128,12 @@ class Sorter:
             for y in entries:
                 if x == y:
                     continue # Don't compare with itself
-                elif self.options.prefix == None and all((not x['dir'], not y['dir'])):
+                if self.options.prefix == None and all((not x['dir'], not y['dir'])):
                     continue # Skip file-file comparison if possible
-                elif self.options.dirs == False and all((x['dir'],y['dir'])):
+                if self.options.dirs == False and all((x['dir'],y['dir'])):
                     continue # Skip dir-dir comparison if possible
 
-                result = {'x':x, 'y':y, 'factor': self.__compare (x,y) }
+                result = {'x':x, 'y':y, 'factor': self._compare (x,y) }
                 self.results.append(result)
 
             entries.remove(x)# No need to compare it on both lists

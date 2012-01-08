@@ -365,7 +365,7 @@ def main():
     parser.add_option("-f", "--factor", type="float",  dest="factor", default=50.0,
                       help="Similarity threshold. By default, a minimun of 50% similarity is required before taking action")
     parser.add_option("-p", "--prefix", dest="prefix", default=None,
-                      help="If needed, create new directories beginning with given prefix. You can specify '' or \"\" if you wan't to create new directories without prefix")
+                      help="If needed, create new directories beginning with given prefix. You can specify '' or \"\" if you want to create new directories without prefix")
 
     (options, args) = parser.parse_args()
 

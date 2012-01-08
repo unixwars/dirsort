@@ -39,4 +39,4 @@ Options:
   -d, --directories             Merge directories if appropriate
   -y, --yes                     Assume Yes to all queries and do not prompt
   -f FACTOR, --factor=FACTOR    Similarity threshold. By default, a minimun of 50% similarity is required before taking action
-  -p PREFIX, --prefix=PREFIX    If needed, create new directories beginning with given prefix. You can specify '' or "" if you wan't to create new directories without prefix
+  -p PREFIX, --prefix=PREFIX    If needed, create new directories beginning with given prefix. You can specify '' or "" if you want to create new directories without prefix
